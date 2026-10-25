@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bảng điểm GTLN GTNN</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600&display=swap">
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f9;--surface:#fff;--ink:#18202f;--muted:#5b6578;--line:#d9dfea;--accent:#2f4ba2;--accent-ink:#fff;--accent-soft:#e6ebf8;--ok:#157a4b;--warn:#b7791f;--bad:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#12161f;--surface:#1b212d;--ink:#e8ecf4;--muted:#9aa4b8;--line:#2d3646;--accent:#8fa6ee;--accent-ink:#0f1626;--accent-soft:#252f4d;--ok:#5fd09a;--warn:#e8b45a;--bad:#ff8f87}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.55 'Be Vietnam Pro',system-ui,sans-serif;padding:24px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:980px;margin:0 auto}
+h1{font:600 clamp(1.6rem,4vw,2.2rem)/1.2 'Newsreader',Georgia,serif;margin:0 0 4px}
+h2{font:600 1.15rem 'Newsreader',Georgia,serif;margin:0 0 10px}
+.muted{color:var(--muted);margin:0}
+.login{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+input[type=password],input[type=text]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0;flex:1 1 220px}
+button{font:600 .95rem 'Be Vietnam Pro',sans-serif;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:10px 20px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.err{color:var(--bad);margin-top:10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:22px 0}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.tile b{display:block;font:600 1.9rem/1.1 'Newsreader',Georgia,serif;font-variant-numeric:tabular-nums}
+.tile span{font-size:.82rem;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:16px}
+.tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.tools label{display:flex;gap:6px;align-items:center;font-size:.9rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right}
+.pill{display:inline-block;border-radius:6px;padding:1px 9px;font-weight:600}
+.hi{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.mid{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.lo{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.qs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 22px}
+.q{display:grid;grid-template-columns:52px 1fr 42px;gap:8px;align-items:center;font-size:.86rem}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%}
+</style></head><body><div class="wrap">
+<h1>Bảng điểm lớp</h1>
+<p class="muted">Kết quả bài GTLN – GTNN của hàm số chứa tham số, lấy từ Google Sheet.</p>
+
+<form class="login" id="login">
+  <label for="key" style="position:absolute;left:-9999px">Mật khẩu xem điểm</label>
+  <input type="password" id="key" placeholder="Mật khẩu xem điểm" autocomplete="current-password">
+  <button type="submit">Xem điểm</button>
+</form>
+<div class="err" id="err" role="alert"></div>
+
+<div id="out" hidden>
+  <div class="tiles" id="tiles"></div>
+  <div class="card">
+    <div class="tools">
+      <input type="text" id="find" placeholder="Tìm theo tên hoặc lớp">
+      <label><input type="checkbox" id="best" checked> Mỗi bạn chỉ tính lần làm điểm cao nhất</label>
+      <button class="ghost" id="reload" type="button">Tải lại</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Thời gian</th><th>Họ tên</th><th>Lớp</th><th class="n">Điểm /10</th><th class="n">Phần I</th><th class="n">Phần II</th><th class="n">Phần III</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+  <div class="card"><h2>Tỉ lệ làm đúng từng câu</h2><p class="muted" style="margin-bottom:12px">Câu nào thấp nhất là câu cả lớp hay sai.</p><div class="qs" id="qs"></div></div>
+</div>
+</div>
+<script>
+/* Dán cùng địa chỉ Apps Script như trong index.html */
+const API_URL='https://script.google.com/macros/s/AKfycbzpnJK0C6wjFVhIp8K7u2HdsaJSjqVnPIAQiE_E1VIVzEUDXFWV5Shf7bdrdIrIND5CGw/exec';
+const $=id=>document.getElementById(id);
+let data=[];
+$('login').addEventListener('submit',e=>{e.preventDefault();load()});
+$('reload').onclick=load;
+$('find').oninput=render;$('best').onchange=render;
+
+async function load(){
+  $('err').textContent='';
+  if(!API_URL){$('err').textContent='Chưa gắn địa chỉ Apps Script vào trang (biến API_URL).';return}
+  try{
+    const res=await fetch(API_URL+'?key='+encodeURIComponent($('key').value));
+    const j=await res.json();
+    if(!j.ok){$('err').textContent='Sai mật khẩu.';return}
+    data=j.rows.map(r=>({...r,name:String(r.name==null?'':r.name),cls:String(r.cls==null?'':r.cls),score10:Number(r.score10)||0,s1:Number(r.s1)||0,s2:Number(r.s2)||0,s3:Number(r.s3)||0}));
+    $('out').hidden=false;
+  }catch(x){$('err').textContent='Không tải được dữ liệu. Kiểm tra mạng hoặc địa chỉ Apps Script.';return}
+  try{render()}catch(x){$('err').textContent='Lỗi hiển thị bảng điểm: '+x.message}
+}
+const f1=x=>(Math.round(x*100)/100).toString().replace('.',',');
+function cls(v){return v>=8?'hi':v>=5?'mid':'lo'}
+function render(){
+  let rows=data.slice();
+  if($('best').checked){
+    const m=new Map();
+    rows.forEach(r=>{const k=(r.name||'').trim().toLowerCase()+'|'+(r.cls||'').trim().toLowerCase();const o=m.get(k);if(!o||r.score10>o.score10)m.set(k,r)});
+    rows=[...m.values()];
+  }
+  const q=$('find').value.trim().toLowerCase();
+  const shown=rows.filter(r=>!q||(r.name+' '+r.cls).toLowerCase().includes(q)).sort((a,b)=>b.score10-a.score10);
+  const avg=rows.length?rows.reduce((s,r)=>s+r.score10,0)/rows.length:0;
+  const top=rows.length?Math.max(...rows.map(r=>r.score10)):0;
+  const pass=rows.filter(r=>r.score10>=5).length;
+  $('tiles').innerHTML='';
+  [[rows.length,'Số bạn đã nộp'],[f1(avg),'Điểm trung bình /10'],[f1(top),'Điểm cao nhất'],[rows.length?Math.round(pass/rows.length*100)+'%':'0%','Đạt từ 5 điểm']].forEach(([v,l])=>{
+    const d=document.createElement('div');d.className='tile';const b=document.createElement('b');b.textContent=v;const s=document.createElement('span');s.textContent=l;d.append(b,s);$('tiles').append(d)});
+  const tb=$('rows');tb.innerHTML='';
+  shown.forEach(r=>{
+    const tr=document.createElement('tr');
+    const t=new Date(r.time);
+    const cells=[isNaN(t)?'':t.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),r.name,r.cls,null,f1(r.s1)+'/3',f1(r.s2)+'/4',f1(r.s3)+'/2'];
+    cells.forEach((c,i)=>{const td=document.createElement('td');
+      if(i===3){td.className='n';const p=document.createElement('span');p.className='pill '+cls(r.score10);p.textContent=f1(r.score10);td.append(p)}
+      else{td.textContent=c;if(i>3)td.className='n'}
+      tr.append(td)});
+    tb.append(tr)});
+  // tỉ lệ đúng từng câu
+  const acc=[];const n=rows.length;
+  const lab=[];for(let i=0;i<12;i++)lab.push('I.'+(i+1));for(let i=0;i<4;i++)lab.push('II.'+(i+1));for(let i=0;i<4;i++)lab.push('III.'+(i+1));
+  rows.forEach(r=>{const d=r.detail||{};const a=[...(d.p1||[]),...(d.p2||[]).map(k=>k/4),...(d.p3||[])];a.forEach((v,i)=>acc[i]=(acc[i]||0)+v)});
+  $('qs').innerHTML='';
+  lab.forEach((l,i)=>{
+    const p=n?Math.round((acc[i]||0)/n*100):0;
+    const d=document.createElement('div');d.className='q';
+    const a=document.createElement('span');a.textContent=l;
+    const bar=document.createElement('div');bar.className='bar';const fill=document.createElement('i');fill.style.width=p+'%';fill.style.background=p>=70?'var(--ok)':p>=40?'var(--warn)':'var(--bad)';bar.append(fill);
+    const c=document.createElement('span');c.textContent=p+'%';c.style.textAlign='right';
+    d.append(a,bar,c);$('qs').append(d)});
+}
+</script></body></html>
